@@ -9,6 +9,7 @@ Professional drag-and-drop password protection for WordPress pages with multiple
 - **5 Stunning Gradient Themes** - Beautiful password form designs
 - **Mobile Responsive** - Works perfectly on all devices
 - **Secure Protection** - Enterprise-grade security practices
+- **Full Site Protect** - Option to set site-wide password to override all other password settings
 
 ## 🎨 Gradient Themes
 
