@@ -47,10 +47,16 @@ class EasyPasswordProtect {
         // Initialize default settings
         if (empty($settings)) {
             $settings = array(
+                'full_site_protection' => array('enabled' => false, 'password' => '', 'gradient' => 'default'),
                 'group1' => array('password' => '', 'pages' => array(), 'gradient' => 'default'),
                 'group2' => array('password' => '', 'pages' => array(), 'gradient' => 'default'),
                 'group3' => array('password' => '', 'pages' => array(), 'gradient' => 'default')
             );
+        }
+        
+        // Ensure full site protection setting exists for existing installations
+        if (!isset($settings['full_site_protection'])) {
+            $settings['full_site_protection'] = array('enabled' => false, 'password' => '', 'gradient' => 'default');
         }
         
         // Ensure gradient setting exists for existing installations
@@ -62,8 +68,10 @@ class EasyPasswordProtect {
         
         // Get all currently protected pages across all groups
         $all_protected_pages = array();
-        foreach ($settings as $group_data) {
-            $all_protected_pages = array_merge($all_protected_pages, $group_data['pages'] ?? array());
+        foreach ($settings as $group_key => $group_data) {
+            if ($group_key !== 'full_site_protection') {
+                $all_protected_pages = array_merge($all_protected_pages, $group_data['pages'] ?? array());
+            }
         }
         
         // Get WordPress posts page setting
@@ -101,95 +109,49 @@ class EasyPasswordProtect {
         ?>
         <div class="wrap">
             <h1>🔒 Easy Password Protect</h1>
-            <p>Drag and drop pages between the lists to set up password protection. You can create up to 3 different password groups.</p>
+            <p>Password protect your entire site or individual pages. Full site protection overrides all other settings when enabled.</p>
             
             <div id="password-protect-container">
                 
-                <?php for ($i = 1; $i <= 3; $i++): ?>
-                <div class="password-group" data-group="group<?php echo $i; ?>">
-                    <h2>Password Group <?php echo $i; ?></h2>
+                <!-- Full Site Protection Section -->
+                <div class="password-group full-site-group" data-group="full_site_protection">
+                    <h2>🌐 Full Site Protection</h2>
+                    <p class="full-site-description">When enabled, this password will protect your entire website and override all individual page settings below.</p>
                     
-                    <div class="password-input-section">
-                        <label for="password-<?php echo $i; ?>">Password:</label>
-                        <input type="text" id="password-<?php echo $i; ?>" 
-                               value="<?php echo esc_attr($settings["group{$i}"]['password'] ?? ''); ?>" 
-                               placeholder="Enter password for this group">
-                        <span class="password-info">(Leave empty to disable this group)</span>
+                    <div class="full-site-toggle">
+                        <label for="full-site-enabled">
+                            <input type="checkbox" id="full-site-enabled" 
+                                   <?php checked($settings['full_site_protection']['enabled'] ?? false, true); ?>>
+                            <strong>Enable Full Site Protection</strong>
+                        </label>
                     </div>
                     
-                    <div class="gradient-selection-section">
-                        <h4>🎨 Choose Password Page Style:</h4>
-                        <div class="gradient-options">
-                            <?php foreach ($gradient_options as $key => $gradient): ?>
-                                <label class="gradient-option">
-                                    <input type="radio" name="gradient-<?php echo $i; ?>" value="<?php echo $key; ?>" 
-                                           <?php checked($settings["group{$i}"]['gradient'] ?? 'default', $key); ?>>
-                                    <div class="gradient-preview" style="background: <?php echo $gradient['css']; ?>">
-                                        <div class="gradient-info">
-                                            <strong><?php echo esc_html($gradient['name']); ?></strong>
-                                            <small><?php echo esc_html($gradient['description']); ?></small>
-                                        </div>
-                                    </div>
-                                </label>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                    
-                    <div class="drag-drop-section">
-                        <div class="pages-container">
-                            <div class="available-pages">
-                                <h3>📄 Available Pages</h3>
-                                <div class="pages-list sortable" id="available-<?php echo $i; ?>" data-type="available">
-                                    <?php 
-                                    foreach ($all_pages as $page): 
-                                        // Skip if page is already protected in any group
-                                        if (in_array($page->ID, $all_protected_pages)) {
-                                            continue;
-                                        }
-                                        
-                                        // Check if this is the WordPress posts page
-                                        $is_posts_page = ($page->ID === $posts_page_id && $posts_page_id > 0);
-                                        
-                                        if ($is_posts_page): ?>
-                                            <div class="page-item not-eligible" data-page-id="<?php echo esc_attr($page->ID); ?>">
-                                                ❌ <?php echo esc_html($page->post_title); ?> (WordPress Posts Page - not eligible)
-                                                <small>(ID: <?php echo $page->ID; ?>)</small>
-                                            </div>
-                                        <?php else: ?>
-                                            <div class="page-item" data-page-id="<?php echo esc_attr($page->ID); ?>">
-                                                <?php echo esc_html($page->post_title); ?>
-                                                <small>(ID: <?php echo $page->ID; ?>)</small>
-                                            </div>
-                                        <?php endif; 
-                                    endforeach; ?>
-                                </div>
-                            </div>
-                            
-                            <div class="protected-pages">
-                                <h3>🔐 Password Protected</h3>
-                                <div class="pages-list sortable" id="protected-<?php echo $i; ?>" data-type="protected">
-                                    <?php
-                                    $protected_pages = $settings["group{$i}"]['pages'] ?? array();
-                                    foreach ($protected_pages as $page_id) {
-                                        $page = get_post($page_id);
-                                        if ($page && $page->post_type === 'page') {
-                                            echo '<div class="page-item" data-page-id="' . esc_attr($page->ID) . '">';
-                                            echo esc_html($page->post_title);
-                                            echo '<small>(ID: ' . $page->ID . ')</small>';
-                                            echo '</div>';
-                                        }
-                                    }
-                                    ?>
-                                </div>
-                            </div>
+                    <div class="full-site-settings" style="<?php echo ($settings['full_site_protection']['enabled'] ?? false) ? '' : 'display: none;'; ?>">
+                        <div class="password-input-section">
+                            <label for="full-site-password">Password:</label>
+                            <input type="text" id="full-site-password" 
+                                   value="<?php echo esc_attr($settings['full_site_protection']['password'] ?? ''); ?>" 
+                                   placeholder="Enter password for full site protection">
+                            <span class="password-info">(This password will protect your entire site)</span>
                         </div>
                         
-                        <?php if ($i === 1): ?>
-                        <div class="instructions">
-                            <p><strong>How to use:</strong> Drag pages from "Available Pages" to "Password Protected" to protect them with this group's password. Drag back to make them public again.</p>
-                            <p><strong>Note:</strong> This plugin only works with WordPress Pages, not blog posts or the blog page.</p>
+                        <div class="gradient-selection-section">
+                            <h4>🎨 Choose Password Page Style:</h4>
+                            <div class="gradient-options">
+                                <?php foreach ($gradient_options as $key => $gradient): ?>
+                                    <label class="gradient-option">
+                                        <input type="radio" name="gradient-full-site" value="<?php echo $key; ?>" 
+                                               <?php checked($settings['full_site_protection']['gradient'] ?? 'default', $key); ?>>
+                                        <div class="gradient-preview" style="background: <?php echo $gradient['css']; ?>">
+                                            <div class="gradient-info">
+                                                <strong><?php echo esc_html($gradient['name']); ?></strong>
+                                                <small><?php echo esc_html($gradient['description']); ?></small>
+                                            </div>
+                                        </div>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
-                        <?php endif; ?>
                     </div>
                     
                     <div class="group-save-section">
@@ -197,7 +159,105 @@ class EasyPasswordProtect {
                         <div class="save-status-inline"></div>
                     </div>
                 </div>
-                <?php endfor; ?>
+                
+                <div class="individual-pages-section" style="<?php echo ($settings['full_site_protection']['enabled'] ?? false) ? 'opacity: 0.5; pointer-events: none;' : ''; ?>">
+                    <h2 class="section-title">📄 Individual Page Protection</h2>
+                    <p class="section-description">Drag and drop pages between the lists to set up password protection. You can create up to 3 different password groups.</p>
+                    
+                    <?php for ($i = 1; $i <= 3; $i++): ?>
+                    <div class="password-group" data-group="group<?php echo $i; ?>">
+                        <h2>Password Group <?php echo $i; ?></h2>
+                        
+                        <div class="password-input-section">
+                            <label for="password-<?php echo $i; ?>">Password:</label>
+                            <input type="text" id="password-<?php echo $i; ?>" 
+                                   value="<?php echo esc_attr($settings["group{$i}"]['password'] ?? ''); ?>" 
+                                   placeholder="Enter password for this group">
+                            <span class="password-info">(Leave empty to disable this group)</span>
+                        </div>
+                        
+                        <div class="gradient-selection-section">
+                            <h4>🎨 Choose Password Page Style:</h4>
+                            <div class="gradient-options">
+                                <?php foreach ($gradient_options as $key => $gradient): ?>
+                                    <label class="gradient-option">
+                                        <input type="radio" name="gradient-<?php echo $i; ?>" value="<?php echo $key; ?>" 
+                                               <?php checked($settings["group{$i}"]['gradient'] ?? 'default', $key); ?>>
+                                        <div class="gradient-preview" style="background: <?php echo $gradient['css']; ?>">
+                                            <div class="gradient-info">
+                                                <strong><?php echo esc_html($gradient['name']); ?></strong>
+                                                <small><?php echo esc_html($gradient['description']); ?></small>
+                                            </div>
+                                        </div>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        
+                        <div class="drag-drop-section">
+                            <div class="pages-container">
+                                <div class="available-pages">
+                                    <h3>📄 Available Pages</h3>
+                                    <div class="pages-list sortable" id="available-<?php echo $i; ?>" data-type="available">
+                                        <?php 
+                                        foreach ($all_pages as $page): 
+                                            // Skip if page is already protected in any group
+                                            if (in_array($page->ID, $all_protected_pages)) {
+                                                continue;
+                                            }
+                                            
+                                            // Check if this is the WordPress posts page
+                                            $is_posts_page = ($page->ID === $posts_page_id && $posts_page_id > 0);
+                                            
+                                            if ($is_posts_page): ?>
+                                                <div class="page-item not-eligible" data-page-id="<?php echo esc_attr($page->ID); ?>">
+                                                    ❌ <?php echo esc_html($page->post_title); ?> (WordPress Posts Page - not eligible)
+                                                    <small>(ID: <?php echo $page->ID; ?>)</small>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="page-item" data-page-id="<?php echo esc_attr($page->ID); ?>">
+                                                    <?php echo esc_html($page->post_title); ?>
+                                                    <small>(ID: <?php echo $page->ID; ?>)</small>
+                                                </div>
+                                            <?php endif; 
+                                        endforeach; ?>
+                                    </div>
+                                </div>
+                                
+                                <div class="protected-pages">
+                                    <h3>🔐 Password Protected</h3>
+                                    <div class="pages-list sortable" id="protected-<?php echo $i; ?>" data-type="protected">
+                                        <?php
+                                        $protected_pages = $settings["group{$i}"]['pages'] ?? array();
+                                        foreach ($protected_pages as $page_id) {
+                                            $page = get_post($page_id);
+                                            if ($page && $page->post_type === 'page') {
+                                                echo '<div class="page-item" data-page-id="' . esc_attr($page->ID) . '">';
+                                                echo esc_html($page->post_title);
+                                                echo '<small>(ID: ' . $page->ID . ')</small>';
+                                                echo '</div>';
+                                            }
+                                        }
+                                        ?>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <?php if ($i === 1): ?>
+                            <div class="instructions">
+                                <p><strong>How to use:</strong> Drag pages from "Available Pages" to "Password Protected" to protect them with this group's password. Drag back to make them public again.</p>
+                                <p><strong>Note:</strong> This plugin only works with WordPress Pages, not blog posts or the blog page.</p>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <div class="group-save-section">
+                            <button class="save-settings-btn button button-primary">💾 Save All Settings</button>
+                            <div class="save-status-inline"></div>
+                        </div>
+                    </div>
+                    <?php endfor; ?>
+                </div>
                 
                 <div class="save-section">
                     <button id="save-settings" class="button button-primary button-large">💾 Save All Settings</button>
@@ -220,11 +280,67 @@ class EasyPasswordProtect {
             border-left: 4px solid #0073aa;
         }
         
+        .full-site-group {
+            border-left-color: #d63638;
+            background: linear-gradient(135deg, #fff 0%, #fdf5f5 100%);
+        }
+        
+        .full-site-description {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 12px;
+            color: #856404;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .full-site-toggle {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .full-site-toggle label {
+            display: flex;
+            align-items: center;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        .full-site-toggle input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        
+        .individual-pages-section {
+            transition: all 0.3s ease;
+        }
+        
+        .section-title {
+            color: #0073aa;
+            border-bottom: 2px solid #0073aa;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .section-description {
+            color: #666;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        
         .password-group h2 {
             margin-top: 0;
             color: #0073aa;
             font-size: 20px;
             margin-bottom: 20px;
+        }
+        
+        .full-site-group h2 {
+            color: #d63638;
         }
         
         .password-input-section {
@@ -548,6 +664,16 @@ class EasyPasswordProtect {
         
         <script>
         jQuery(document).ready(function($) {
+            // Handle full site protection toggle
+            $('#full-site-enabled').change(function() {
+                var isEnabled = $(this).is(':checked');
+                $('.full-site-settings').toggle(isEnabled);
+                $('.individual-pages-section').css({
+                    'opacity': isEnabled ? '0.5' : '1',
+                    'pointer-events': isEnabled ? 'none' : 'auto'
+                });
+            });
+            
             // Handle gradient selection styling
             $('input[type="radio"][name^="gradient-"]').change(function() {
                 // Remove selected class from all gradient options in this group
@@ -596,6 +722,11 @@ class EasyPasswordProtect {
                 $('.save-settings-btn, #save-settings').prop('disabled', true).text('Saving...');
                 
                 var settings = {
+                    full_site_protection: {
+                        enabled: $('#full-site-enabled').is(':checked'),
+                        password: $('#full-site-password').val().trim(),
+                        gradient: $('input[name="gradient-full-site"]:checked').val()
+                    },
                     group1: { password: $('#password-1').val().trim(), pages: [], gradient: $('input[name="gradient-1"]:checked').val() },
                     group2: { password: $('#password-2').val().trim(), pages: [], gradient: $('input[name="gradient-2"]:checked').val() },
                     group3: { password: $('#password-3').val().trim(), pages: [], gradient: $('input[name="gradient-3"]:checked').val() }
@@ -659,6 +790,24 @@ class EasyPasswordProtect {
         
         // Sanitize and validate settings
         $settings = array();
+        
+        // Handle full site protection settings
+        if (isset($_POST['settings']['full_site_protection'])) {
+            $full_site_data = $_POST['settings']['full_site_protection'];
+            $settings['full_site_protection'] = array(
+                'enabled' => isset($full_site_data['enabled']) ? (bool) $full_site_data['enabled'] : false,
+                'password' => isset($full_site_data['password']) ? sanitize_text_field($full_site_data['password']) : '',
+                'gradient' => isset($full_site_data['gradient']) ? sanitize_text_field($full_site_data['gradient']) : 'default'
+            );
+            
+            // Validate gradient option for full site
+            $valid_gradients = array('default', 'sunset', 'forest', 'cosmic', 'fire');
+            if (!in_array($settings['full_site_protection']['gradient'], $valid_gradients)) {
+                $settings['full_site_protection']['gradient'] = 'default';
+            }
+        }
+        
+        // Handle individual group settings
         foreach ($_POST['settings'] as $group_key => $group_data) {
             if (!in_array($group_key, array('group1', 'group2', 'group3'))) {
                 continue;
@@ -698,13 +847,8 @@ class EasyPasswordProtect {
     }
     
     public function check_password_protection() {
-        // Only run on frontend pages
-        if (is_admin() || !is_page()) {
-            return;
-        }
-        
-        $current_page_id = get_the_ID();
-        if (!$current_page_id) {
+        // Only run on frontend
+        if (is_admin()) {
             return;
         }
         
@@ -713,9 +857,32 @@ class EasyPasswordProtect {
             return;
         }
         
+        // Check for full site protection first
+        if (isset($settings['full_site_protection']) && 
+            $settings['full_site_protection']['enabled'] && 
+            !empty($settings['full_site_protection']['password'])) {
+            
+            $this->handle_full_site_protection($settings['full_site_protection']);
+            return;
+        }
+        
+        // If not full site protection, check individual page protection
+        if (!is_page()) {
+            return;
+        }
+        
+        $current_page_id = get_the_ID();
+        if (!$current_page_id) {
+            return;
+        }
+        
         // Find which group this page belongs to
         $password_group = null;
-        foreach ($settings as $group_data) {
+        foreach ($settings as $group_key => $group_data) {
+            if ($group_key === 'full_site_protection') {
+                continue;
+            }
+            
             if (isset($group_data['pages']) && is_array($group_data['pages'])) {
                 if (in_array($current_page_id, $group_data['pages']) && !empty($group_data['password'])) {
                     $password_group = $group_data;
@@ -761,9 +928,41 @@ class EasyPasswordProtect {
         exit;
     }
     
-    private function show_password_form($wrong_password = false, $gradient = 'default') {
-        $page_title = get_the_title();
+    private function handle_full_site_protection($full_site_settings) {
+        $required_password = $full_site_settings['password'];
+        $selected_gradient = $full_site_settings['gradient'] ?? 'default';
+        $cookie_name = 'epp_full_site_' . md5($required_password);
         
+        // Handle password submission
+        if (isset($_POST['page_password'])) {
+            if ($_POST['page_password'] === $required_password) {
+                // Set secure cookie for 24 hours
+                $cookie_value = wp_hash_password($required_password);
+                $cookie_expire = time() + DAY_IN_SECONDS;
+                $cookie_path = COOKIEPATH ? COOKIEPATH : '/';
+                $cookie_domain = COOKIE_DOMAIN ? COOKIE_DOMAIN : '';
+                
+                setcookie($cookie_name, $cookie_value, $cookie_expire, $cookie_path, $cookie_domain, is_ssl(), true);
+                
+                wp_safe_redirect($_SERVER['REQUEST_URI']);
+                exit;
+            } else {
+                $this->show_password_form(true, $selected_gradient, true);
+                exit;
+            }
+        }
+        
+        // Check for valid cookie
+        if (isset($_COOKIE[$cookie_name]) && wp_check_password($required_password, $_COOKIE[$cookie_name])) {
+            return;
+        }
+        
+        // Show password form for full site
+        $this->show_password_form(false, $selected_gradient, true);
+        exit;
+    }
+    
+    private function show_password_form($wrong_password = false, $gradient = 'default', $is_full_site = false) {
         // Define gradient styles
         $gradient_styles = array(
             'default' => 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -784,13 +983,18 @@ class EasyPasswordProtect {
         
         $background_style = $gradient_styles[$gradient] ?? $gradient_styles['default'];
         $button_style = $button_styles[$gradient] ?? $button_styles['default'];
+        
+        $form_title = $is_full_site ? 'Site Access Required' : 'Password Required';
+        $form_description = $is_full_site ? 
+            'This website is password protected. Please enter the password to access the site.' : 
+            'This content is password protected. Please enter the password to view this page.';
         ?>
         <!DOCTYPE html>
         <html <?php language_attributes(); ?>>
         <head>
             <meta charset="<?php bloginfo('charset'); ?>">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>Password Protected - <?php echo esc_html($page_title); ?></title>
+            <title>Password Protected - <?php bloginfo('name'); ?></title>
             <style>
                 body { 
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -882,12 +1086,6 @@ class EasyPasswordProtect {
                     color: #999;
                     margin-bottom: 20px;
                 }
-                .page-title {
-                    font-size: 16px;
-                    color: #555;
-                    margin-bottom: 15px;
-                    font-weight: normal;
-                }
             </style>
         </head>
         <body>
@@ -898,12 +1096,11 @@ class EasyPasswordProtect {
                         ❌ Incorrect password. Please try again.
                     </div>
                 <?php endif; ?>
-                <h2>🔒 Password Required</h2>
-                <div class="page-title">Accessing: <strong><?php echo esc_html($page_title); ?></strong></div>
-                <p>This content is password protected. Please enter the password to view this page.</p>
+                <h2>🔒 <?php echo esc_html($form_title); ?></h2>
+                <p><?php echo esc_html($form_description); ?></p>
                 <form method="post">
                     <input type="password" name="page_password" placeholder="Enter password" required autofocus>
-                    <input type="submit" value="Access Page">
+                    <input type="submit" value="<?php echo $is_full_site ? 'Access Site' : 'Access Page'; ?>">
                 </form>
             </div>
         </body>
